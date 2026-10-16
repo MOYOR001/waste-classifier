@@ -1,0 +1,5 @@
+,val_accuracy,val_loss,params_M,train_min
+Custom CNN,0.5572,1.2772,1.18,12.1
+MobileNetV2,0.8878,0.3503,2.27,9.7
+EfficientNetB0,0.9022,0.3045,4.06,9.6
+EfficientNetB0 (tuned),0.9237,0.2523,4.38,8.9

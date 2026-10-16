@@ -1,0 +1,152 @@
+{
+  "architecture": "EfficientNetB0",
+  "normalization": "none",
+  "img_size": [
+    160,
+    160
+  ],
+  "class_names": [
+    "battery",
+    "biological",
+    "cardboard",
+    "clothes",
+    "glass",
+    "metal",
+    "paper",
+    "plastic",
+    "shoes",
+    "trash"
+  ],
+  "final_hyperparameters": {
+    "dropout": 0.1,
+    "units": 256,
+    "head_lr": 0.0009749332269823054,
+    "ft_lr": 5e-05,
+    "unfreeze": 20,
+    "smoothing": 0.0,
+    "opt": "adam"
+  },
+  "validation_results": {
+    "Custom CNN": {
+      "val_accuracy": 0.5572,
+      "val_loss": 1.2772,
+      "params_M": 1.18,
+      "train_min": 12.1
+    },
+    "MobileNetV2": {
+      "val_accuracy": 0.8878,
+      "val_loss": 0.3503,
+      "params_M": 2.27,
+      "train_min": 9.7
+    },
+    "EfficientNetB0": {
+      "val_accuracy": 0.9022,
+      "val_loss": 0.3045,
+      "params_M": 4.06,
+      "train_min": 9.6
+    },
+    "EfficientNetB0 (tuned)": {
+      "val_accuracy": 0.9237,
+      "val_loss": 0.2523,
+      "params_M": 4.38,
+      "train_min": 8.9
+    }
+  },
+  "test_accuracy": 0.9132,
+  "test_loss": 0.2854,
+  "per_class_test_report": {
+    "battery": {
+      "precision": 1.0,
+      "recall": 0.9553571428571429,
+      "f1-score": 0.9771689497716894,
+      "support": 112.0
+    },
+    "biological": {
+      "precision": 0.9805825242718447,
+      "recall": 0.9619047619047619,
+      "f1-score": 0.9711538461538461,
+      "support": 105.0
+    },
+    "cardboard": {
+      "precision": 0.9359605911330049,
+      "recall": 0.9134615384615384,
+      "f1-score": 0.9245742092457421,
+      "support": 208.0
+    },
+    "clothes": {
+      "precision": 0.99644128113879,
+      "recall": 0.9893992932862191,
+      "f1-score": 0.9929078014184397,
+      "support": 283.0
+    },
+    "glass": {
+      "precision": 0.8554216867469879,
+      "recall": 0.8623481781376519,
+      "f1-score": 0.8588709677419355,
+      "support": 247.0
+    },
+    "metal": {
+      "precision": 0.7529411764705882,
+      "recall": 0.920863309352518,
+      "f1-score": 0.8284789644012945,
+      "support": 139.0
+    },
+    "paper": {
+      "precision": 0.8877551020408163,
+      "recall": 0.87,
+      "f1-score": 0.8787878787878788,
+      "support": 200.0
+    },
+    "plastic": {
+      "precision": 0.8789237668161435,
+      "recall": 0.8484848484848485,
+      "f1-score": 0.8634361233480177,
+      "support": 231.0
+    },
+    "shoes": {
+      "precision": 0.9863013698630136,
+      "recall": 0.9953917050691244,
+      "f1-score": 0.9908256880733946,
+      "support": 217.0
+    },
+    "trash": {
+      "precision": 0.8103448275862069,
+      "recall": 0.7014925373134329,
+      "f1-score": 0.752,
+      "support": 67.0
+    },
+    "accuracy": 0.9132117191818684,
+    "macro avg": {
+      "precision": 0.9084672326067397,
+      "recall": 0.9018703314867238,
+      "f1-score": 0.9038204428942238,
+      "support": 1809.0
+    },
+    "weighted avg": {
+      "precision": 0.9156908468621594,
+      "recall": 0.9132117191818684,
+      "f1-score": 0.9135558978397172,
+      "support": 1809.0
+    }
+  },
+  "lighting_robustness": {
+    "factors": [
+      0.3,
+      0.5,
+      0.75,
+      1.0,
+      1.25,
+      1.5,
+      2.0
+    ],
+    "accuracy": [
+      0.8612493276596069,
+      0.8977335691452026,
+      0.9082366228103638,
+      0.9132117033004761,
+      0.8949695825576782,
+      0.867330014705658,
+      0.7777777910232544
+    ]
+  }
+}
