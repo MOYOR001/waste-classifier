@@ -5,18 +5,46 @@ import numpy as np
 import streamlit as st
 import tensorflow as tf
 from PIL import Image, ImageOps
+from huggingface_hub import hf_hub_download
 
 st.set_page_config(page_title="Waste Sorting Classifier", page_icon="♻️", layout="centered")
 ROOT = Path(__file__).resolve().parent
 
 
+ROOT = Path(__file__).resolve().parent
+
+HF_REPO_ID = "moyosore-ai/__waste__"
+
+
 def locate_file(filename: str) -> Path | None:
-    candidates = [ROOT / filename, ROOT / "outputs" / filename]
+    # First, check whether the file is already in GitHub.
+    candidates = [
+        ROOT / filename,
+        ROOT / "outputs" / filename,
+    ]
+
     for path in candidates:
         if path.exists():
             return path
-    return None
 
+    # If it is not in GitHub, try downloading it from Hugging Face.
+    remote_candidates = [
+        filename,
+        f"outputs/{filename}",
+    ]
+
+    for remote_name in remote_candidates:
+        try:
+            downloaded_path = hf_hub_download(
+                repo_id=HF_REPO_ID,
+                filename=remote_name,
+                repo_type="model",
+            )
+            return Path(downloaded_path)
+        except Exception:
+            continue
+
+    return None
 
 @st.cache_resource(show_spinner="Loading the trained waste classifier...")
 def load_artifacts():
