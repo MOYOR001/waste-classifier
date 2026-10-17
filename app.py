@@ -12,6 +12,7 @@ st.set_page_config(page_title="Waste Sorting Classifier", page_icon="♻️", la
 
 ROOT = Path(__file__).resolve().parent
 HF_REPO_ID = "moyosore-ai/__waste__"
+MAX_IMAGES = 20  # keeps the app fast on free hosting
 
 # emoji, group, short disposal hint (general guidance only; local rules vary)
 CATEGORY_INFO = {
@@ -105,12 +106,57 @@ def classify(image: Image.Image, model, image_size, normalization):
     return np.asarray(model.predict(batch, verbose=0))[0]
 
 
+def show_detail(scores, class_names):
+    """Full result view for a single image."""
+    order = np.argsort(scores)[::-1]
+    best = int(order[0])
+    label = class_names[best]
+    conf = float(scores[best])
+    emoji, group, tip = CATEGORY_INFO.get(label, ("♻️", "Unknown", ""))
+
+    st.markdown(
+        f"""
+        <div class="result-card">
+            <div class="result-emoji">{emoji}</div>
+            <div class="result-label">{label.capitalize()}</div>
+            <span class="pill">{group}</span>
+            <div class="tip">💡 {tip}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    c1, c2 = st.columns(2)
+    c1.metric("Model confidence", f"{conf:.1%}")
+    runner_up = class_names[int(order[1])]
+    c2.metric("Second guess", runner_up.capitalize(), f"{float(scores[int(order[1])]):.1%}")
+
+    if conf < 0.5:
+        st.error("Low confidence. Try a clearer photo with only one item.")
+    elif conf < 0.8:
+        st.warning("Moderate confidence. Double-check this prediction.")
+    else:
+        st.success("High confidence.")
+
+    st.markdown("**Top predictions**")
+    for idx in order[: min(5, len(order))]:
+        name = class_names[int(idx)]
+        e = CATEGORY_INFO.get(name, ("♻️",))[0]
+        st.write(f"{e} **{name.capitalize()}** — {float(scores[int(idx)]):.1%}")
+        st.progress(float(np.clip(scores[int(idx)], 0, 1)))
+
+    st.caption(
+        "Confidence is the model's score, not a calibrated probability. "
+        "Disposal hints are general; follow your local recycling rules."
+    )
+
+
 # ---------- Header ----------
 st.markdown(
     """
     <div class="hero">
         <h1>♻️ Waste Sorting Classifier</h1>
-        <p>Upload or capture a photo of one waste item and the model will predict its category.</p>
+        <p>Upload or capture photos of waste items and the model will predict each item's category.</p>
     </div>
     """,
     unsafe_allow_html=True,
@@ -141,79 +187,135 @@ with st.sidebar:
 tab_classify, tab_model = st.tabs(["🔍 Classify", "📊 About the model"])
 
 with tab_classify:
-    left, right = st.columns([1, 1], gap="large")
+    source = st.radio("Image source", ["Upload files", "Use camera"], horizontal=True)
 
-    with left:
-        source = st.radio("Image source", ["Upload a file", "Use camera"], horizontal=True)
-        if source == "Upload a file":
-            file = st.file_uploader("Choose an image", type=["jpg", "jpeg", "png", "webp"])
-        else:
-            file = st.camera_input("Take a photo")
+    if source == "Upload files":
+        files = st.file_uploader(
+            f"Choose one or more images (up to {MAX_IMAGES})",
+            type=["jpg", "jpeg", "png", "webp"],
+            accept_multiple_files=True,
+        )
+    else:
+        cam = st.camera_input("Take a photo")
+        files = [cam] if cam else []
 
-        image = None
-        if file:
-            try:
-                image = ImageOps.exif_transpose(Image.open(file)).convert("RGB")
-                st.image(image, caption="Your image", use_container_width=True)
-            except Exception as exc:
-                st.error(f"Could not read this image: {exc}")
+    if len(files) > MAX_IMAGES:
+        st.warning(f"You added {len(files)} images. Only the first {MAX_IMAGES} will be classified.")
+        files = files[:MAX_IMAGES]
 
-    with right:
-        if image is None:
-            st.info("👈 Add a clear photo of one waste item to see the prediction here.")
-        else:
+    images = []
+    for f in files:
+        name = getattr(f, "name", "camera photo")
+        try:
+            img = ImageOps.exif_transpose(Image.open(f)).convert("RGB")
+            images.append((name, img))
+        except Exception as exc:
+            st.error(f"Could not read {name}: {exc}")
+
+    if not images:
+        st.info("Add clear photos of waste items to see predictions here.")
+
+    # ----- Single image: detailed view -----
+    elif len(images) == 1:
+        name, img = images[0]
+        left, right = st.columns([1, 1], gap="large")
+        with left:
+            st.image(img, caption=name, use_container_width=True)
+        with right:
             try:
                 with st.spinner("Classifying image..."):
-                    scores = classify(image, model, image_size, normalization)
+                    scores = classify(img, model, image_size, normalization)
                 if len(scores) != len(class_names):
                     st.error(
                         f"Model returned {len(scores)} scores but there are {len(class_names)} class names."
                     )
                     st.stop()
-
-                order = np.argsort(scores)[::-1]
-                best = int(order[0])
-                label = class_names[best]
-                conf = float(scores[best])
-                emoji, group, tip = CATEGORY_INFO.get(label, ("♻️", "Unknown", ""))
-
-                st.markdown(
-                    f"""
-                    <div class="result-card">
-                        <div class="result-emoji">{emoji}</div>
-                        <div class="result-label">{label.capitalize()}</div>
-                        <span class="pill">{group}</span>
-                        <div class="tip">💡 {tip}</div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-
-                c1, c2 = st.columns(2)
-                c1.metric("Model confidence", f"{conf:.1%}")
-                runner_up = class_names[int(order[1])]
-                c2.metric("Second guess", runner_up.capitalize(), f"{float(scores[int(order[1])]):.1%}")
-
-                if conf < 0.5:
-                    st.error("Low confidence. Try a clearer photo with only one item.")
-                elif conf < 0.8:
-                    st.warning("Moderate confidence. Double-check this prediction.")
-                else:
-                    st.success("High confidence.")
-
-                st.markdown("**Top predictions**")
-                for idx in order[: min(5, len(order))]:
-                    name = class_names[int(idx)]
-                    e = CATEGORY_INFO.get(name, ("♻️",))[0]
-                    st.write(f"{e} **{name.capitalize()}** — {float(scores[int(idx)]):.1%}")
-                    st.progress(float(np.clip(scores[int(idx)], 0, 1)))
-
-                st.caption(
-                    "Confidence is the model's score, not a calibrated probability. "
-                    "Disposal hints are general; follow your local recycling rules."
-                )
+                show_detail(scores, class_names)
             except Exception as exc:
                 st.error(f"Could not classify this image: {exc}")
+
+    # ----- Multiple images: batch view -----
+    else:
+        results = []
+        progress = st.progress(0.0, text="Classifying images...")
+        for i, (name, img) in enumerate(images):
+            try:
+                scores = classify(img, model, image_size, normalization)
+                best = int(np.argmax(scores))
+                results.append(
+                    {
+                        "name": name,
+                        "image": img,
+                        "label": class_names[best],
+                        "conf": float(scores[best]),
+                        "error": None,
+                    }
+                )
+            except Exception as exc:
+                results.append({"name": name, "image": img, "label": None, "conf": 0.0, "error": str(exc)})
+            progress.progress((i + 1) / len(images), text=f"Classified {i + 1} of {len(images)}")
+        progress.empty()
+
+        ok = [r for r in results if r["error"] is None]
+        st.subheader(f"Results for {len(images)} images")
+
+        if ok:
+            df = pd.DataFrame(
+                {
+                    "Image": [r["name"] for r in ok],
+                    "Prediction": [r["label"].capitalize() for r in ok],
+                    "Confidence": [round(r["conf"] * 100, 1) for r in ok],
+                }
+            )
+
+            s1, s2 = st.columns([1, 1], gap="large")
+            with s1:
+                st.markdown("**Summary table**")
+                st.dataframe(
+                    df,
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        "Confidence": st.column_config.ProgressColumn(
+                            "Confidence (%)", min_value=0, max_value=100, format="%.1f"
+                        )
+                    },
+                )
+                st.download_button(
+                    "⬇️ Download results as CSV",
+                    data=df.to_csv(index=False).encode("utf-8"),
+                    file_name="waste_predictions.csv",
+                    mime="text/csv",
+                )
+            with s2:
+                st.markdown("**Items per category**")
+                counts = df["Prediction"].value_counts()
+                st.bar_chart(counts)
+
+            low = sum(1 for r in ok if r["conf"] < 0.5)
+            if low:
+                st.warning(f"{low} image(s) have low confidence (below 50%). Check those manually.")
+
+        st.markdown("**Individual results**")
+        per_row = 3
+        for start in range(0, len(results), per_row):
+            cols = st.columns(per_row, gap="medium")
+            for col, r in zip(cols, results[start : start + per_row]):
+                with col:
+                    st.image(r["image"], use_container_width=True)
+                    if r["error"]:
+                        st.error(f"{r['name']}: {r['error']}")
+                        continue
+                    emoji = CATEGORY_INFO.get(r["label"], ("♻️",))[0]
+                    st.markdown(f"{emoji} **{r['label'].capitalize()}** — {r['conf']:.1%}")
+                    st.caption(r["name"])
+                    if r["conf"] < 0.5:
+                        st.caption("⚠️ Low confidence")
+
+        st.caption(
+            "Confidence is the model's score, not a calibrated probability. "
+            "Upload a single image to see detailed disposal hints."
+        )
 
 with tab_model:
     st.subheader("How well does the model perform?")
@@ -226,8 +328,8 @@ with tab_model:
     }
     if rows:
         st.markdown("**Test F1-score per category**")
-        df = pd.DataFrame({"F1-score": rows}).sort_values("F1-score")
-        st.bar_chart(df)
+        df_f1 = pd.DataFrame({"F1-score": rows}).sort_values("F1-score")
+        st.bar_chart(df_f1)
         st.caption("Lower bars (such as trash and metal) are the categories the model confuses most often.")
 
     val = summary.get("validation_results", {})
