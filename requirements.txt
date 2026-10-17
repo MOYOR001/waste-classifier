@@ -1,5 +1,6 @@
 streamlit
-tensorflow-cpu==2.15.1
+tensorflow-cpu==2.19.0
+keras==3.8.0
 numpy
 Pillow
 huggingface_hub
